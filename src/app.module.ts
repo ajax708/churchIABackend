@@ -22,6 +22,9 @@ import { EventoModule } from './evento/evento.module';
     EventoModule
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: 
+  [
+    AppService,
+  ],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, BadRequestException, Res } from '@nestjs/common';
 import { EventoService } from './evento.service';
 import { CreateEventoDto } from './dto/create-evento.dto';
 import { UpdateEventoDto } from './dto/update-evento.dto';
@@ -6,15 +6,14 @@ import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Multer, diskStorage } from 'multer';
 
-import { extname } from 'path';
-import axios from 'axios';
-import * as fs from 'fs';
-import * as FormData from 'form-data';
+
+import { Response } from 'express';
 
 @ApiTags('evento')
 @Controller('evento')
 export class EventoController {
-  constructor(private readonly eventoService: EventoService) {}
+  constructor(private readonly eventoService: EventoService,
+  ) {}
 
   @Post()
   create(@Body() createEventoDto: CreateEventoDto) {
@@ -32,7 +31,7 @@ export class EventoController {
   }
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.eventoService.findOne(+id);
+    return this.eventoService.findOne(Number(id));
   }
 
   @Patch(':id')
@@ -59,15 +58,19 @@ export class EventoController {
       
     }),
   )
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
+  async uploadFile(@UploadedFile() file: Express.Multer.File, @Res() res: Response) {
+    
+  
+     if (!file) {
       throw new BadRequestException('File is required');
     }
 
     
     const response= await this.eventoService.convertirAudioToMessage(file);
+    const imageGenerated = await this.eventoService.generarImagenConTexto2(response[0]);
+    console.log("Imagen generada: " + imageGenerated);
+    return res.json(response); 
 
-    return response;
   }
 
 }

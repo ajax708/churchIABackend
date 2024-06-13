@@ -1,20 +1,22 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CreateEventoDto } from './dto/create-evento.dto';
 import { UpdateEventoDto } from './dto/update-evento.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Evento, EventoDocument } from './schema/evento-schema';
 import { Model } from 'mongoose';
 
-import { extname } from 'path';
+import * as path from 'path';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as FormData from 'form-data';
-import { response } from 'express';
+
+import Jimp from 'jimp';
+
 
 
 @Injectable()
 export class EventoService {
-
+  private readonly graphqlUrl = 'http://localhost:8080/graphql';
   constructor(
     @InjectModel(Evento.name) private eventoModel: Model<EventoDocument>,
   ){}
@@ -27,8 +29,9 @@ export class EventoService {
   findAll() {
     //traer todos los eventos menos la columna images
     return this.eventoModel.find().select('-images').exec();
-    
   }
+
+  
 
   findAllWithImages() {
     return this.eventoModel.find().exec();
@@ -55,14 +58,10 @@ export class EventoService {
       {
           // Convertir el audio a texto
           const textoTranscrito = await this.convertirAudioToText(file);
-          
-
-          console.log("Texto transcrito: " + textoTranscrito);
-
-          
+    
           const mensajes = await this.generarTextoConGPT3( textoTranscrito);
           
-          console.log("Mensaje generado: " + mensajes);
+          console.log("\nMensaje generado: " + mensajes);
           return mensajes; 
       }
       catch (error)
@@ -121,6 +120,100 @@ export class EventoService {
     } catch (error) {
       console.error("Error al consumir GPT-3.5", error);
       throw new BadRequestException('Failed to generate text with GPT-3.5');
+    }
+  }
+
+  async generarImagenConTexto(mensaje: string): Promise<Buffer> {
+    try {
+      const prompt = `Create a spiritual or Christian-themed background image with the following message in the center: "${mensaje}"`;
+
+      const response = await axios.post('https://api.openai.com/v1/images/generations', {
+        prompt: prompt,
+        n: 1,
+        size: '1024x1024',
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.APIKEY_OPENIA}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const imageUrl = response.data.data[0].url;
+      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const image = await Jimp.read(imageResponse.data);
+
+      const font = await Jimp.loadFont(Jimp.FONT_SANS_32_WHITE);
+      image.print(font, 10, 10, {
+        text: mensaje,
+        alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+        alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
+      }, image.getWidth() - 20, image.getHeight() - 20);
+
+      const buffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+      return buffer;
+    } catch (error) {
+      console.error("Error al generar imagen", error);
+      throw new BadRequestException('Failed to generate image');
+    }
+  }
+
+  async procesarAudioYGenerarImagenes(file: Express.Multer.File): Promise<Buffer[]> {
+    try {
+      const texto = await this.convertirAudioToText(file);
+      const mensajes = await this.generarTextoConGPT3(texto);
+
+      const imagenes = await Promise.all(mensajes.map(async (mensaje) => {
+        const buffer = await this.generarImagenConTexto(mensaje);
+        return buffer;
+      }));
+
+      return imagenes;
+    } catch (error) {
+      console.error("Error al procesar audio y generar imágenes", error);
+      throw new BadRequestException('Failed to process audio and generate images');
+    }
+  }
+
+  async generarImagenConTexto2(mensaje: string): Promise<string> {
+    try {
+      const prompt = `Create a spiritual or Christian-themed background image`;
+
+      const response = await axios.post('https://api.openai.com/v1/images/generations', {
+        prompt,
+        n: 1,
+        size: '1024x1024',
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.APIKEY_OPENIA}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const imageUrl = response.data.data[0].url;
+
+      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const image = await Jimp.read(imageResponse.data);
+
+      const font = await Jimp.loadFont(Jimp.FONT_SANS_64_BLACK);
+      image.print(font, 10, 10, {
+        text: mensaje,
+        alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+        alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
+      }, image.getWidth() - 25, image.getHeight() - 25);
+
+      const outputDir = path.resolve(__dirname, '..', '..', 'generated');
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir);
+      }
+
+      const fileName = `${Date.now()}-image.jpg`;
+      const outputPath = path.resolve(outputDir, fileName);
+      await image.writeAsync(outputPath);
+
+      return outputPath;
+    } catch (error) {
+      console.error("Error al generar imagen", error);
+      throw new BadRequestException('Failed to generate image');
     }
   }
 }
