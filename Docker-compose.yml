@@ -1,0 +1,26 @@
+version: '3.1'
+
+services:
+  app:
+    image: nestjs-docker
+    container_name: nestjs-docker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/src/app/nestjs
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo
+    container_name: mongo
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+
+volumes:
+  mongo-data:
