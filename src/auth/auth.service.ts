@@ -1,31 +1,35 @@
-import { HttpException, Injectable } from '@nestjs/common';
-import { RegisterAuthDto } from './dto/register-auth.dto';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { User, UserDocument } from 'src/user/schema/user.schema.';
 import { Model } from 'mongoose';
-import { hash, compare } from 'bcryptjs';
-import { LoginAuthDto } from './dto/login-auth.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { compare, hash } from 'bcrypt';
+import axios from 'axios';
+import { User, UserDocument } from 'src/user/schema/user.schema.';
+import { RegisterAuthDto } from './dto/register-auth.dto';
+import { LoginAuthDto } from './dto/login-auth.dto';
+
 
 @Injectable()
 export class AuthService {
+  private readonly authUrl = process.env.BACKEND_URL + '/auth/login';
+  private accessToken: string = null;
+
   constructor(
-    @InjectModel
-      (User.name) private readonly userModel: Model<UserDocument>,
-      private jwtService: JwtService,
-      private readonly configService: ConfigService,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
-  async register(registerAuthDto: RegisterAuthDto) {
-    const { password } = registerAuthDto; 
+  async register(registerAuthDto: RegisterAuthDto): Promise<UserDocument> {
+    const { password } = registerAuthDto;
     const passwordHash = await hash(password, 10);
-    registerAuthDto = { ...registerAuthDto, password: passwordHash }; // Add passwordHash to registerAuthDto
+    registerAuthDto = { ...registerAuthDto, password: passwordHash };
     return this.userModel.create(registerAuthDto);
   }
 
   async login(loginAuthDto: LoginAuthDto) {
-    const { email, password } = loginAuthDto;
+    const { username: email, password } = loginAuthDto;
     const findUser = await this.userModel.findOne({email:email});
     if (!findUser){
       throw new HttpException('User not found', 404);
@@ -44,5 +48,58 @@ export class AuthService {
       token: token,
     }
     return data;
+  }
+
+  async authenticate(username: string, password: string): Promise<void> {
+    try {
+      const response = await axios.post(this.authUrl, { username, password });
+      if (response.data && response.data.accessToken) {
+        this.accessToken = response.data.accessToken;
+
+      } else {
+        throw new HttpException('Invalid token received', HttpStatus.UNAUTHORIZED);
+      }
+    } catch (error) {
+      throw new HttpException('Authentication failed', HttpStatus.UNAUTHORIZED);
+    }
+  }
+
+  async refreshToken(): Promise<string> {
+    try {
+      const response = await axios.post(this.authUrl, { refreshToken: this.accessToken });
+      if (response.data && response.data.accessToken) {
+        this.accessToken = response.data.accessToken;
+        return this.accessToken;
+      } else {
+        throw new HttpException('Invalid token received', HttpStatus.UNAUTHORIZED);
+      }
+    } catch (error) {
+      throw new HttpException('Token refresh failed', HttpStatus.UNAUTHORIZED);
+    }
+  }
+
+  getAccessToken(): string {
+    return this.accessToken;
+  }
+
+  decodeToken(): { [key: string]: any } | null {
+    if (this.accessToken) {
+      return this.jwtService.decode(this.accessToken) as { [key: string]: any };
+    }
+    return null;
+  }
+
+  async isAuthenticatedUser(): Promise<boolean> {
+    if (!this.accessToken) {
+      return false;
+    }
+
+    const decodedToken = this.decodeToken();
+    if (!decodedToken || !decodedToken.exp) {
+      return false;
+    }
+
+    const currentTime = Math.floor(Date.now() / 1000);
+    return decodedToken.exp > currentTime;
   }
 }

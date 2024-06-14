@@ -4,6 +4,6 @@ import { IsNotEmpty } from "class-validator";
 
 export class RegisterAuthDto extends PartialType(LoginAuthDto) {
     @IsNotEmpty()
-    email: string;
+    username: string;
 
 }

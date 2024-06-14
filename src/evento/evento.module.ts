@@ -4,6 +4,9 @@ import { EventoController } from './evento.controller';
 import { Evento, EventoSchema } from './schema/evento-schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { OpenAIService } from './OpenIA.service';
+import { HttpModule } from '@nestjs/axios';
+import { AuthService } from 'src/auth/auth.service';
+import { AuthModule } from 'src/auth/auth.module';
 
 @Module({
   imports: [
@@ -14,7 +17,9 @@ import { OpenAIService } from './OpenIA.service';
           schema: EventoSchema,
         },
       ],
-    )
+    ),
+    HttpModule,
+    AuthModule,
   ],
   controllers: [EventoController],
   providers: [EventoService, OpenAIService],

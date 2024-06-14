@@ -5,14 +5,18 @@ export type EventoDocument = Evento & Document;
 
 @Schema()
 export class Evento {
+    @Prop({ type: String })
     @Prop()
-    title: string;
+    id: string;
 
     @Prop()
-    description: string;
+    nombre: string;
 
     @Prop()
     fecha: Date;
+
+    @Prop()
+    lugar: String;
 
     @Prop()
     images: string[];

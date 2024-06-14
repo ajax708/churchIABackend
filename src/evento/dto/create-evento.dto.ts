@@ -2,8 +2,9 @@ import { IsNotEmpty } from "class-validator";
 
 export class CreateEventoDto {
     @IsNotEmpty()
-    title: string;
-    description: string;
+    id: string;
+    nombre: string;
     fecha: Date;
-    images: string[];
+    lugar: string;
+    images: string[]=[];
 }

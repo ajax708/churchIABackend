@@ -6,17 +6,15 @@ import { Evento, EventoDocument } from './schema/evento-schema';
 import { Model } from 'mongoose';
 
 import * as path from 'path';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import * as fs from 'fs';
 import * as FormData from 'form-data';
 
 import Jimp from 'jimp';
 
-
-
 @Injectable()
 export class EventoService {
-  private readonly graphqlUrl = 'http://localhost:8080/graphql';
+  private readonly graphqlUrl =  `${process.env.BACKEND_URL}/graphql`;
   constructor(
     @InjectModel(Evento.name) private eventoModel: Model<EventoDocument>,
   ){}
@@ -27,11 +25,18 @@ export class EventoService {
   }
 
   findAll() {
-    //traer todos los eventos menos la columna images
-    return this.eventoModel.find().select('-images').exec();
+    //traer todos los eventos que tienen la columna imagenes distintas de null
+    return this.eventoModel.find({images: { $ne: null }}).exec();
   }
 
-  
+  async findById(id: string) {
+    // Busca el evento por ID
+    const evento = await this.eventoModel.findOne({ id:id }).exec();
+    if (!evento) {
+      throw new Error('Evento no encontrado');
+    }
+    return evento;
+  }
 
   findAllWithImages() {
     return this.eventoModel.find().exec();
@@ -201,20 +206,54 @@ export class EventoService {
         alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
       }, image.getWidth() - 25, image.getHeight() - 25);
 
-      const outputDir = path.resolve(__dirname, '..', '..', 'generated');
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir);
+      // Directorio base de almacenamiento
+      const baseStorageDir = path.resolve(__dirname, '..', '..', 'storage', 'generated');
+      if (!fs.existsSync(baseStorageDir)) {
+        fs.mkdirSync(baseStorageDir, { recursive: true });
       }
 
+      // Generar la ruta relativa
       const fileName = `${Date.now()}-image.jpg`;
-      const outputPath = path.resolve(outputDir, fileName);
+      const outputPath = path.resolve(baseStorageDir, fileName);
+
+      // Guardar la imagen
       await image.writeAsync(outputPath);
 
-      return outputPath;
+      // Retornar la ruta relativa
+      const relativePath = path.join('storage', 'generated', fileName);
+      return relativePath;
     } catch (error) {
       console.error("Error al generar imagen", error);
       throw new BadRequestException('Failed to generate image');
     }
+  }
+
+  async getEventos( _token: string): Promise<any> {
+    const query = `
+      {
+        findAllEventos {
+          id
+          nombre
+          fecha
+          lugar
+        }
+      }
+    `;
+    const token = _token;
+    const response: AxiosResponse<any> = await axios.post(
+       this.graphqlUrl,
+      {
+        query,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    console.log(response.data);
+    return response.data;
   }
 }
 
