@@ -19,15 +19,9 @@ import { join } from 'path';
       }
     ),
     MongooseModule.forRoot(process.env.MONGO_URI || 'mongodb://localhost:27017/nest2'),
-    ServeStaticModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => [
-        {
-          rootPath: join(__dirname, '..', configService.get<string>('UPLOADS_PATH')),
-          serveRoot: '/storage',  // Opcional, si deseas cambiar la raíz de servicio
-        },
-      ],
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'storage', 'generated'),
+      serveRoot: '/storage',
     }),
     SermonModule,
     AuthModule,

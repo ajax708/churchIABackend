@@ -1,5 +1,5 @@
 # Imagen base de Node.js
-FROM node:lts-alpine
+FROM node:lts
 
 # Establecer el directorio de trabajo
 WORKDIR /src/app/nestjs
