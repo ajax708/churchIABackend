@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { compare, hash } from 'bcrypt';
+import { compare, hash } from 'bcryptjs';
 import axios from 'axios';
 import { User, UserDocument } from 'src/user/schema/user.schema.';
 import { RegisterAuthDto } from './dto/register-auth.dto';
@@ -53,8 +53,8 @@ export class AuthService {
   async authenticate(username: string, password: string): Promise<void> {
     try {
       const response = await axios.post(this.authUrl, { username, password });
-      if (response.data && response.data.accessToken) {
-        this.accessToken = response.data.accessToken;
+      if (response.data && response.data.token) {
+        this.accessToken = response.data.token;
 
       } else {
         throw new HttpException('Invalid token received', HttpStatus.UNAUTHORIZED);
@@ -67,8 +67,8 @@ export class AuthService {
   async refreshToken(): Promise<string> {
     try {
       const response = await axios.post(this.authUrl, { refreshToken: this.accessToken });
-      if (response.data && response.data.accessToken) {
-        this.accessToken = response.data.accessToken;
+      if (response.data && response.data.token) {
+        this.accessToken = response.data.token;
         return this.accessToken;
       } else {
         throw new HttpException('Invalid token received', HttpStatus.UNAUTHORIZED);
