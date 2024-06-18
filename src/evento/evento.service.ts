@@ -54,7 +54,6 @@ export class EventoService {
       });
     }));
     
-    console.log(imagesBase64);
     // Reemplaza las rutas con las imágenes en base64
     return {
       ...evento.toObject(), // Convierte el documento de Mongoose a un objeto plano
