@@ -53,8 +53,8 @@ export class AuthService {
   async authenticate(username: string, password: string): Promise<void> {
     try {
       const response = await axios.post(this.authUrl, { username, password });
-      if (response.data && response.data.accessToken) {
-        this.accessToken = response.data.accessToken;
+      if (response.data && response.data.token) {
+        this.accessToken = response.data.token;
 
       } else {
         throw new HttpException('Invalid token received', HttpStatus.UNAUTHORIZED);
@@ -67,8 +67,8 @@ export class AuthService {
   async refreshToken(): Promise<string> {
     try {
       const response = await axios.post(this.authUrl, { refreshToken: this.accessToken });
-      if (response.data && response.data.accessToken) {
-        this.accessToken = response.data.accessToken;
+      if (response.data && response.data.token) {
+        this.accessToken = response.data.token;
         return this.accessToken;
       } else {
         throw new HttpException('Invalid token received', HttpStatus.UNAUTHORIZED);
