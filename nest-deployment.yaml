@@ -13,14 +13,20 @@ spec:
         app: nest-app
     spec:
       containers:
-      - name: nest-app
-        image: gcr.io/relevans2-bb0f6/nestjssw2:latest
+      - name: gcr.io/relevans2-bb0f6/nestjssw2:latest
+        image: nestjs-docker
         ports:
         - containerPort: 3000
         envFrom:
         - secretRef:
             name: nest-env
----
+        volumeMounts:
+          - name: storage-volume
+            mountPath: /src/app/nestjs/storage
+      volumes:
+      - name: storage-volume
+        persistentVolumeClaim:
+          claimName: storage-pvc
 apiVersion: v1
 kind: Service
 metadata:

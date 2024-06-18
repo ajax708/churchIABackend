@@ -10,6 +10,7 @@ import axios, { AxiosResponse } from 'axios';
 import * as fs from 'fs';
 import * as FormData from 'form-data';
 
+
 import Jimp from 'jimp';
 
 @Injectable()
@@ -32,10 +33,33 @@ export class EventoService {
   async findById(id: string) {
     // Busca el evento por ID
     const evento = await this.eventoModel.findOne({ id:id }).exec();
+    
     if (!evento) {
       throw new Error('Evento no encontrado');
     }
-    return evento;
+
+    // Obtén la ruta de la carpeta base de imágenes
+    const baseImagePath = path.join(__dirname, '..', '..');
+    
+    // Convierte las rutas de imágenes a base64
+    const imagesBase64 = await Promise.all(evento.images.map(async (imagePath) => {
+      const fullPath = path.join(baseImagePath, imagePath);
+      return new Promise<string>((resolve, reject) => {
+        fs.readFile(fullPath, (err, data) => {
+          if (err) {
+            return reject(new Error(`Error al leer la imagen en ${fullPath}: ${err.message}`));
+          }
+          resolve(`data:image/jpeg;base64,${data.toString('base64')}`);
+        });
+      });
+    }));
+    
+    console.log(imagesBase64);
+    // Reemplaza las rutas con las imágenes en base64
+    return {
+      ...evento.toObject(), // Convierte el documento de Mongoose a un objeto plano
+      images: imagesBase64
+    };
   }
 
   findAllWithImages() {
